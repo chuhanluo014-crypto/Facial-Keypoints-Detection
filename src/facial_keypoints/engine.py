@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 
 from .data import create_cv_loaders
-from .metrics import compute_rmse, masked_mse_loss
+from .metrics import EPSILON, masked_mse_loss, masked_squared_error_sum
 from .models import build_model
 
 
@@ -25,7 +25,8 @@ def train_one_epoch(
     device: torch.device,
 ) -> float:
     model.train()
-    total_loss = 0.0
+    total_squared_error = 0.0
+    total_observed = 0.0
 
     for images, keypoints, masks in loader:
         images = images.to(device)
@@ -38,9 +39,14 @@ def train_one_epoch(
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item()
+        total_squared_error += masked_squared_error_sum(
+            outputs.detach(),
+            keypoints,
+            masks,
+        ).item()
+        total_observed += masks.sum().item()
 
-    return total_loss / max(len(loader), 1)
+    return total_squared_error / max(total_observed, EPSILON)
 
 
 @torch.no_grad()
@@ -50,7 +56,8 @@ def evaluate(
     device: torch.device,
 ) -> float:
     model.eval()
-    total_rmse = 0.0
+    total_squared_error = 0.0
+    total_observed = 0.0
 
     for images, keypoints, masks in loader:
         images = images.to(device)
@@ -58,9 +65,10 @@ def evaluate(
         masks = masks.to(device)
 
         outputs = model(images)
-        total_rmse += compute_rmse(outputs, keypoints, masks).item()
+        total_squared_error += masked_squared_error_sum(outputs, keypoints, masks).item()
+        total_observed += masks.sum().item()
 
-    return total_rmse / max(len(loader), 1)
+    return float(np.sqrt(total_squared_error / max(total_observed, EPSILON)))
 
 
 def run_cross_validation(

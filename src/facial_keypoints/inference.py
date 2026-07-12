@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-from .data import create_test_loader
+from .data import KEYPOINT_COLUMNS, create_test_loader
 from .models import build_model
 
 
@@ -16,7 +16,9 @@ def predict_keypoints(
     batch_size: int = 128,
     device_name: str = "auto",
 ) -> pd.DataFrame:
-    device = torch.device("cuda" if device_name == "auto" and torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda" if device_name == "auto" and torch.cuda.is_available() else "cpu"
+    )
     if device_name != "auto":
         device = torch.device(device_name)
 
@@ -49,46 +51,23 @@ def build_kaggle_submission(
     output_csv: str | Path,
 ) -> Path:
     lookup = pd.read_csv(lookup_csv)
-    feature_names = [
-        "left_eye_center_x",
-        "left_eye_center_y",
-        "right_eye_center_x",
-        "right_eye_center_y",
-        "left_eye_inner_corner_x",
-        "left_eye_inner_corner_y",
-        "left_eye_outer_corner_x",
-        "left_eye_outer_corner_y",
-        "right_eye_inner_corner_x",
-        "right_eye_inner_corner_y",
-        "right_eye_outer_corner_x",
-        "right_eye_outer_corner_y",
-        "left_eyebrow_inner_end_x",
-        "left_eyebrow_inner_end_y",
-        "left_eyebrow_outer_end_x",
-        "left_eyebrow_outer_end_y",
-        "right_eyebrow_inner_end_x",
-        "right_eyebrow_inner_end_y",
-        "right_eyebrow_outer_end_x",
-        "right_eyebrow_outer_end_y",
-        "nose_tip_x",
-        "nose_tip_y",
-        "mouth_left_corner_x",
-        "mouth_left_corner_y",
-        "mouth_right_corner_x",
-        "mouth_right_corner_y",
-        "mouth_center_top_lip_x",
-        "mouth_center_top_lip_y",
-        "mouth_center_bottom_lip_x",
-        "mouth_center_bottom_lip_y",
+    feature_to_column = {name: f"kp_{index}" for index, name in enumerate(KEYPOINT_COLUMNS)}
+    unknown_features = sorted(set(lookup["FeatureName"]) - set(feature_to_column))
+    if unknown_features:
+        raise ValueError(f"Unsupported lookup features: {unknown_features}")
+
+    prediction_index = predictions.set_index("ImageId")
+    locations = [
+        prediction_index.at[image_id, feature_to_column[feature_name]]
+        for image_id, feature_name in zip(
+            lookup["ImageId"],
+            lookup["FeatureName"],
+            strict=True,
+        )
     ]
-    feature_to_column = {name: f"kp_{index}" for index, name in enumerate(feature_names)}
-    merged = lookup.merge(predictions, on="ImageId", how="left")
-    merged["Location"] = merged.apply(
-        lambda row: row[feature_to_column[row["FeatureName"]]],
-        axis=1,
-    )
+    submission = lookup.assign(Location=locations)
 
     output_path = Path(output_csv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    merged[["RowId", "Location"]].to_csv(output_path, index=False)
+    submission[["RowId", "Location"]].to_csv(output_path, index=False)
     return output_path

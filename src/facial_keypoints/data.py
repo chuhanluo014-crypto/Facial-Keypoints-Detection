@@ -9,26 +9,69 @@ from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 
 
+KEYPOINT_COLUMNS = [
+    "left_eye_center_x",
+    "left_eye_center_y",
+    "right_eye_center_x",
+    "right_eye_center_y",
+    "left_eye_inner_corner_x",
+    "left_eye_inner_corner_y",
+    "left_eye_outer_corner_x",
+    "left_eye_outer_corner_y",
+    "right_eye_inner_corner_x",
+    "right_eye_inner_corner_y",
+    "right_eye_outer_corner_x",
+    "right_eye_outer_corner_y",
+    "left_eyebrow_inner_end_x",
+    "left_eyebrow_inner_end_y",
+    "left_eyebrow_outer_end_x",
+    "left_eyebrow_outer_end_y",
+    "right_eyebrow_inner_end_x",
+    "right_eyebrow_inner_end_y",
+    "right_eyebrow_outer_end_x",
+    "right_eyebrow_outer_end_y",
+    "nose_tip_x",
+    "nose_tip_y",
+    "mouth_left_corner_x",
+    "mouth_left_corner_y",
+    "mouth_right_corner_x",
+    "mouth_right_corner_y",
+    "mouth_center_top_lip_x",
+    "mouth_center_top_lip_y",
+    "mouth_center_bottom_lip_x",
+    "mouth_center_bottom_lip_y",
+]
+
+HORIZONTAL_FLIP_INDEX_PAIRS = [
+    (0, 2),
+    (1, 3),
+    (4, 8),
+    (5, 9),
+    (6, 10),
+    (7, 11),
+    (12, 16),
+    (13, 17),
+    (14, 18),
+    (15, 19),
+    (22, 24),
+    (23, 25),
+]
+
+
 class FacialKeypointsDataset(Dataset):
     """Dataset for Kaggle facial keypoints CSV rows."""
 
-    def __init__(self, frame: pd.DataFrame, is_train: bool = False) -> None:
+    def __init__(
+        self,
+        frame: pd.DataFrame,
+        is_train: bool = False,
+        flip_probability: float = 0.5,
+    ) -> None:
+        if not 0.0 <= flip_probability <= 1.0:
+            raise ValueError("flip_probability must be between 0.0 and 1.0")
         self.frame = frame.reset_index(drop=True)
         self.is_train = is_train
-        self.flip_pairs = [
-            (0, 2),
-            (1, 3),
-            (4, 6),
-            (5, 7),
-            (8, 10),
-            (9, 11),
-            (12, 14),
-            (13, 15),
-            (16, 18),
-            (17, 19),
-            (22, 24),
-            (23, 25),
-        ]
+        self.flip_probability = flip_probability
 
     def __len__(self) -> int:
         return len(self.frame)
@@ -36,12 +79,12 @@ class FacialKeypointsDataset(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         row = self.frame.iloc[index]
         image = np.fromstring(row["Image"], sep=" ", dtype=np.float32).reshape(96, 96)
-        keypoints = row.drop("Image").values.astype(np.float32)
+        keypoints = row[KEYPOINT_COLUMNS].to_numpy(dtype=np.float32)
 
-        if self.is_train and np.random.rand() > 0.5:
+        if self.is_train and torch.rand(()) < self.flip_probability:
             image = np.fliplr(image)
             keypoints[0::2] = 96.0 - keypoints[0::2]
-            for left_index, right_index in self.flip_pairs:
+            for left_index, right_index in HORIZONTAL_FLIP_INDEX_PAIRS:
                 keypoints[left_index], keypoints[right_index] = (
                     keypoints[right_index],
                     keypoints[left_index],
