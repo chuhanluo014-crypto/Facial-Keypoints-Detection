@@ -2,14 +2,23 @@ from __future__ import annotations
 
 import torch
 
+EPSILON = 1e-8
+
+
+def masked_squared_error_sum(
+    predictions: torch.Tensor,
+    targets: torch.Tensor,
+    masks: torch.Tensor,
+) -> torch.Tensor:
+    return (((predictions - targets) ** 2) * masks).sum()
+
 
 def masked_mse_loss(
     predictions: torch.Tensor,
     targets: torch.Tensor,
     masks: torch.Tensor,
 ) -> torch.Tensor:
-    masked_diff = (predictions - targets) * masks
-    return (masked_diff**2).sum() / (masks.sum() + 1e-8)
+    return masked_squared_error_sum(predictions, targets, masks) / (masks.sum() + EPSILON)
 
 
 def compute_rmse(
