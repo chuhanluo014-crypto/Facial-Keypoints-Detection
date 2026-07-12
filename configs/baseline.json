@@ -1,0 +1,16 @@
+{
+  "train_csv": "data/raw/training.csv",
+  "test_csv": "data/raw/test.csv",
+  "lookup_csv": "data/raw/IdLookupTable.csv",
+  "output_dir": "outputs/baseline_cnn",
+  "model_name": "baseline_cnn",
+  "pretrained": false,
+  "n_splits": 5,
+  "batch_size": 32,
+  "epochs": 15,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "num_workers": 0,
+  "max_rows": null,
+  "device": "auto"
+}

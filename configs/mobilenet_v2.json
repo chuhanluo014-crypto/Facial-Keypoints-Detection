@@ -1,0 +1,16 @@
+{
+  "train_csv": "data/raw/training.csv",
+  "test_csv": "data/raw/test.csv",
+  "lookup_csv": "data/raw/IdLookupTable.csv",
+  "output_dir": "outputs/mobilenet_v2",
+  "model_name": "mobilenet_v2",
+  "pretrained": true,
+  "n_splits": 5,
+  "batch_size": 32,
+  "epochs": 20,
+  "learning_rate": 0.0005,
+  "seed": 42,
+  "num_workers": 0,
+  "max_rows": null,
+  "device": "auto"
+}

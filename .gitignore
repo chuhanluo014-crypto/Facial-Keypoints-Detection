@@ -21,7 +21,7 @@ env/
 Thumbs.db
 
 # Generated ML artifacts
-outputs/
+outputs/*
 runs/
 logs/
 checkpoints/
@@ -30,6 +30,11 @@ models/
 *.pth
 *.ckpt
 *.onnx
+!outputs/.gitkeep
+
+# Derived data
+data/processed/
+data/interim/
 
 # Temporary files
 tmp/
